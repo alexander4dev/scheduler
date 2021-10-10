@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <base href="{{ baseHref }}">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css">
+        <link rel="stylesheet" href="css/style.css">
+        <script src="js/jquery-3.1.1.min.js"></script>
+        <script src="bootstrap/js/bootstrap.min.js"></script>
+    </head>
+    <body>
+        <div class="navbar">
+            <div class="navbar-inner">
+                <div class="container">
+                    <ul class="nav">
+                        <li class="active"><a href="./">Главная</a></li>
+                        <li><a href="search">Создать поиск</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="container">
+            {% if searches | length > 0 %}
+                <table class="table table-bordered table-hover table-condensed">
+                    <thead>
+                        <th>Название</th>
+                        <th>Время последнего выполнения</th>
+                        <th>Обьектов обработано</th>
+                        <th>Время следующего выполнения</th>
+                        <th></th>
+                    </thead>
+                    <tbody>
+                        {% for search in searches %}
+                            <tr>
+                                <td class="searchName">{{ search.name }}</td>
+                                <td>{{ search.lastExecution ? search.lastExecution | date("Y-m-d H:i:s") : 'Поиск еще не выполнялся' }}</td>
+                                <td>{{ search.lastExecution ? search.lastProcessedCount : '' }}</td>
+                                <td>{{ search.next_execution ? search.next_execution | date("Y-m-d H:i:s") : 'Период выполнения не задан' }}</td>
+                                <td>
+                                    <a href="search?action=edit&id={{ search.id }}">Редактировать</a>
+                                    <a class="deleteSearch" data-searchid ="{{ search.id }}" href="javascript:void(0);">Удалить</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+
+        <form id="form" style="display:none" action=""></form>
+
+        <script>
+            var baseHref = '{{ baseHref }}';
+
+            $(function() {
+                $(document).on('click', '.deleteSearch', function() {
+                    if (!confirm('Удалить поиск "' + $(this).parents('tr').find('.searchName').text() + '"?')) {
+                        return;
+                    }
+
+                    var form = $('#form');
+                    form.attr('action', 'search?action=delete&id=' + $(this).data('searchid'));
+                    form.attr('method', 'post');
+                    form.submit();
+                });
+
+                setInterval(function() {
+                    $.post('notifications', function(data) {
+                        for (var key in data) {
+                            var results = JSON.parse(data[key]['lastResults']);
+
+                            for (var type in results) {
+                                notify('search?action=results&id=' + data[key]['id'] + '&type=' + type, results[type]['subject']);
+                            }
+                        }
+{#
+                        if (data.length) {
+                            window.location.reload();
+                        }#}
+                    });
+                }, 3000);
+            });
+
+            function notify(url, subject) {
+                var newWindow = window.open(url);
+                $(newWindow).on('load', function() {
+                    newWindow.document.title = subject;
+                    $(newWindow.document).contents().find('title').text(subject);
+                    $(newWindow.document).contents().find('table').before('<h4>' + subject + '</h4>');
+                });
+            }
+        </script>
+    </body>
+</html>
